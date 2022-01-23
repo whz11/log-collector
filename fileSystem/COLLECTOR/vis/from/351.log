@@ -1,0 +1,8 @@
+2022-01-12 19:09:30.161 [main] INFO  c.qingyou.visitor.VisitorApplication - Starting VisitorApplication on localhost with PID 22205 (/Users/apple/java/Pomelo/visitor/target/classes started by apple in /Users/apple/java/Pomelo/visitor) 
+
+2022-01-12 19:09:34.154 [main] INFO  o.s.s.c.ThreadPoolTaskExecutor - Initializing ExecutorService 
+
+2022-01-12 19:09:36.102 [main] INFO  c.qingyou.visitor.VisitorApplication - Started VisitorApplication in 6.343 seconds (JVM running for 7.289) 
+
+2022-01-12 19:09:36.167 [RMI TCP Connection(3)-127.0.0.1] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting... 
+

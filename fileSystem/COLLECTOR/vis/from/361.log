@@ -1,0 +1,9 @@
+2022-01-12 19:09:31.597 [main] INFO  c.q.v.c.p.base.PipelineRouteConfig - 管道路由表初始化完成:
+{SubmitContext=DateLimitProcessor->ContactValidProcessor->VisitorExistProcessor->IdempotentProcessor->FormSubmitProcessor, ApproveContext=FormValidProcessor->TeacherProcessor->LeaderProcessor} 
+
+2022-01-12 19:09:32.195 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat] 
+
+2022-01-12 19:09:35.507 [main] INFO  o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-8080"] 
+
+2022-01-12 19:09:36.161 [RMI TCP Connection(2)-127.0.0.1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet' 
+
