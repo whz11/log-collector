@@ -1,4 +1,0 @@
-2022-01-12 19:09:34.155 [main] INFO  o.s.s.c.ThreadPoolTaskExecutor - Initializing ExecutorService 'getAsyncExecutor' 
-
-2022-01-12 19:09:36.160 [RMI TCP Connection(3)-127.0.0.1] WARN  com.zaxxer.hikari.HikariConfig - HikariPool-1 - idleTimeout is close to or more than maxLifetime, disabling it. 
-

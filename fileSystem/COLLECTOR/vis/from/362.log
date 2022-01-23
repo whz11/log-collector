@@ -1,8 +1,0 @@
-2022-01-12 19:09:30.162 [main] INFO  c.qingyou.visitor.VisitorApplication - The following profiles are active: dev 
-
-2022-01-12 19:09:34.143 [main] INFO  o.s.s.c.ThreadPoolTaskScheduler - Initializing ExecutorService 'taskScheduler' 
-
-2022-01-12 19:09:36.107 [SchedulerThreadPool-1] INFO  c.q.v.task.OAuthAccessTokenSchedule - ¸üÐÂOAUTH2 Access Token 
-
-2022-01-12 19:09:36.606 [SchedulerThreadPool-1] INFO  c.q.v.task.OAuthAccessTokenSchedule - OAuthAccessTokenSchedule.TokenResult(access_token=4e7d00b3-7ff7-4e33-9cce-7c564f52dd04, token_type=bearer, expires_in=1303, scope=ALL) 
-
