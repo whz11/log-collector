@@ -5,24 +5,17 @@ import com.sun.jna.Pointer;
 import com.whz.logcollector.store.util.CUtil;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
 import sun.nio.ch.DirectBuffer;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -113,7 +106,7 @@ public class MappedFile extends ReferenceResource {
         }
     }
 
-    public AppendMessageResult appendMessagesInner(final LogInner logInner) {
+    public AsyncLogResult appendLogInner(final LogInner logInner) {
 
         int currentPos = this.wrotePosition.get();
 
@@ -121,11 +114,11 @@ public class MappedFile extends ReferenceResource {
             ByteBuffer byteBuffer = writeBuffer.slice();
             byteBuffer.position(currentPos);
 
-            AppendMessageResult result = this.doAppend(this.getFileFromOffset(), byteBuffer, this.fileSize - currentPos, logInner);
+            AsyncLogResult result = this.doAppend(this.getFileFromOffset(), byteBuffer, this.fileSize - currentPos, logInner);
             this.wrotePosition.addAndGet(result.getWroteBytes());
             return result;
         }
-        return new AppendMessageResult(AppendMessageStatus.UNKNOWN_ERROR);
+        return new AsyncLogResult(AsyncLogStatus.UNKNOWN_ERROR);
     }
 
     private void resetByteBuffer(final ByteBuffer byteBuffer, final int limit) {
@@ -133,8 +126,8 @@ public class MappedFile extends ReferenceResource {
         byteBuffer.limit(limit);
     }
 
-    public AppendMessageResult doAppend(final long fileFromOffset, final ByteBuffer byteBuffer, final int maxBlank,
-                                        final LogInner logInner) {
+    public AsyncLogResult doAppend(final long fileFromOffset, final ByteBuffer byteBuffer, final int maxBlank,
+                                   final LogInner logInner) {
         long wroteOffset = fileFromOffset + byteBuffer.position();
 
         byte[] appNameBytes = new byte[0];
@@ -150,12 +143,12 @@ public class MappedFile extends ReferenceResource {
         if (logBlockLen > maxMessageSize) {
             log.warn("block size exceeded, block total size: " + logBlockLen + ", block body size: " + bodyLength
                     + ", maxMessageSize: " + maxMessageSize);
-            return new AppendMessageResult(AppendMessageStatus.MESSAGE_SIZE_EXCEEDED);
+            return new AsyncLogResult(AsyncLogStatus.MESSAGE_SIZE_EXCEEDED);
         }
 
         // 没有充足空间
         if (logBlockLen > maxBlank) {
-            return new AppendMessageResult(AppendMessageStatus.END_OF_FILE, wroteOffset, maxBlank);
+            return new AsyncLogResult(AsyncLogStatus.END_OF_FILE, wroteOffset, maxBlank);
         }
         ByteBuffer logBlock = ByteBuffer.allocate(logBlockLen);
 
@@ -181,7 +174,7 @@ public class MappedFile extends ReferenceResource {
         byteBuffer.put(logBlock.array(), 0, logBlockLen);
 
 
-        return new AppendMessageResult(AppendMessageStatus.OK, wroteOffset, logBlockLen);
+        return new AsyncLogResult(AsyncLogStatus.OK, wroteOffset, logBlockLen);
     }
 
     public long getLastModifiedTimestamp() {

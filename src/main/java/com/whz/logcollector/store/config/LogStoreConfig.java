@@ -11,8 +11,7 @@ import java.io.File;
  **/
 @Data
 public class LogStoreConfig {
-    private int commitLogSize = 1024 * 1024 * 512;
-    //    private int mappedFileSizeConsumeQueue = 300000 * ConsumeQueue.CQ_STORE_UNIT_SIZE;
+    private int commitLogSize =  512;
     private String storePathRootDir = "store";
 
     private String storePathCommitLog = "store"

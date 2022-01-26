@@ -20,13 +20,9 @@ public class DirectByteBufferPool {
     private final int poolSize;
     private final int fileSize;
     private final Deque<ByteBuffer> availableBuffers;
-    public DirectByteBufferPool() {
-        this.poolSize = 2;
-        this.fileSize = 1024*1024*512;
-        this.availableBuffers = new ConcurrentLinkedDeque<>();
-    }
+
     public DirectByteBufferPool(final LogStoreConfig storeConfig) {
-        this.poolSize = 5;
+        this.poolSize = 100;
         this.fileSize = storeConfig.getCommitLogSize();
         this.availableBuffers = new ConcurrentLinkedDeque<>();
     }

@@ -1,12 +1,9 @@
 package com.whz.logcollector.store;
 
 import com.whz.logcollector.store.config.LogStoreConfig;
-import com.whz.logcollector.store.config.StorePathConfigHelper;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -20,19 +17,19 @@ public class DefaultLogStore implements LogStore {
     private final DirectByteBufferPool directByteBufferPool;
     private volatile boolean shutdown = true;
     private final LogStoreConfig logStoreConfig;
-    private final AllocateMappedFileService allocateMappedFileService;
+    private final MappedFileFactory mappedFileFactory;
 
     public DefaultLogStore() {
         this.logStoreConfig = new LogStoreConfig();
-        this.allocateMappedFileService = new AllocateMappedFileService(this);
+        this.mappedFileFactory = new MappedFileFactory(this);
         this.commitLog = new CommitLog(this);
-        this.directByteBufferPool = new DirectByteBufferPool();
+        this.directByteBufferPool = new DirectByteBufferPool(this.logStoreConfig);
         this.directByteBufferPool.init();
     }
 
     @Override
     public CompletableFuture<Boolean> asyncPut(LogInner logInner) {
-        return this.commitLog.putMessage(logInner).thenApply(result -> result.getStatus() == AppendMessageStatus.OK);
+        return this.commitLog.putLog(logInner).thenApply(result -> result.getStatus() == AsyncLogStatus.OK);
     }
 
     @Override
@@ -65,7 +62,6 @@ public class DefaultLogStore implements LogStore {
 
 
         this.commitLog.start();
-        this.allocateMappedFileService.start();
 
         this.shutdown = false;
     }
@@ -83,7 +79,7 @@ public class DefaultLogStore implements LogStore {
                 log.error("shutdown Exception, ", e);
             }
 
-            this.allocateMappedFileService.shutdown();
+            this.mappedFileFactory.shutdown();
             this.commitLog.shutdown();
 
         }

@@ -2,11 +2,6 @@ package com.whz.logcollector.store;
 
 import lombok.extern.slf4j.Slf4j;
 
-import java.net.Inet6Address;
-import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -19,11 +14,13 @@ public class CommitLog {
     private ReentrantLock putMessageLock = new ReentrantLock();
     protected MappedFileQueue mappedFileQueue;
     private DefaultLogStore defaultLogStore;
+    private final FlushCommitLogService commitLogService;
 
     public CommitLog(final DefaultLogStore defaultLogStore) {
         this.mappedFileQueue = new MappedFileQueue(defaultLogStore.getLogStoreConfig().getStorePathCommitLog(),
-                defaultLogStore.getLogStoreConfig().getCommitLogSize(), defaultLogStore.getAllocateMappedFileService());
+                defaultLogStore.getLogStoreConfig().getCommitLogSize(), defaultLogStore.getMappedFileFactory());
         this.defaultLogStore = defaultLogStore;
+        this.commitLogService=new FlushCommitLogService(defaultLogStore,mappedFileQueue);
 
     }
 
@@ -53,50 +50,37 @@ public class CommitLog {
 //        this.flushCommitLogService.shutdown();
     }
 
-    public CompletableFuture<AppendMessageResult> putMessage(final LogInner logInner) {
+    public CompletableFuture<AsyncLogResult> putLog(final LogInner logInner) {
 
         //获取最后一个mappedFile（可用于写入的文件）
         MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile();
-        AppendMessageResult result = null;
+        AsyncLogResult result;
         putMessageLock.lock();
         try {
-
             if (null == mappedFile || mappedFile.isFull()) {
-                mappedFile = this.mappedFileQueue.getLastMappedFile(0);
+                long t1 = System.currentTimeMillis();
+                mappedFile = this.mappedFileQueue.getLastMappedFile(true);
+                log.info("time:{}ms", System.currentTimeMillis() - t1);
             }
             if (null == mappedFile) {
-                return CompletableFuture.completedFuture(new AppendMessageResult(AppendMessageStatus.UNKNOWN_ERROR));
+                return CompletableFuture.completedFuture(new AsyncLogResult(AsyncLogStatus.UNKNOWN_ERROR));
             }
-            result = mappedFile.appendMessagesInner(logInner);
-            if (result.getStatus() == AppendMessageStatus.END_OF_FILE) {
+            result = mappedFile.appendLogInner(logInner);
+            if (result.getStatus() == AsyncLogStatus.END_OF_FILE) {
                 // Create a new file, re-write the message
-                mappedFile = this.mappedFileQueue.getLastMappedFile(0);
+                mappedFile = this.mappedFileQueue.getLastMappedFile(true);
                 if (null == mappedFile) {
-                    return CompletableFuture.completedFuture(new AppendMessageResult(AppendMessageStatus.UNKNOWN_ERROR));
+                    return CompletableFuture.completedFuture(new AsyncLogResult(AsyncLogStatus.UNKNOWN_ERROR));
                 }
-                return putMessage(logInner);
+                return putLog(logInner);
             }
 
         } finally {
             putMessageLock.unlock();
         }
-        return CompletableFuture.completedFuture(result);
+        commitLogService.wakeup();
 
-//
-//        CompletableFuture<PutMessageStatus> flushResultFuture = submitFlushRequest(result, msg);
-//        CompletableFuture<PutMessageStatus> replicaResultFuture = submitReplicaRequest(result, msg);
-//        return flushResultFuture.thenCombine(replicaResultFuture, (flushStatus, replicaStatus) -> {
-//            if (flushStatus != PutMessageStatus.PUT_OK) {
-//                putMessageResult.setPutMessageStatus(flushStatus);
-//            }
-//            if (replicaStatus != PutMessageStatus.PUT_OK) {
-//                putMessageResult.setPutMessageStatus(replicaStatus);
-//                if (replicaStatus == PutMessageStatus.FLUSH_SLAVE_TIMEOUT) {
-//                    log.error("do sync transfer other node, wait return, but failed, topic: {} tags: {} client address: {}",
-//                            msg.getTopic(), msg.getTags(), msg.getBornHostNameString());
-//                }
-//            }
-//            return putMessageResult;
-//        });
+        return CompletableFuture.completedFuture(result);
     }
+
 }

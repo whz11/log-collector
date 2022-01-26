@@ -33,14 +33,19 @@ class DefaultLogStoreTest {
     }
     @Test
     void asyncPut() {
-        logStore.asyncPut(buildMessage());
+        long t1=System.currentTimeMillis();
+        while (true) {
+            logStore.asyncPut(buildMessage());
+        }
+//        System.out.println(System.currentTimeMillis()-t1);
+
     }
-//    @AfterEach
-//    public void destroy() {
+    @AfterEach
+    public void destroy() {
 //        logStore.shutdown();
 //        logStore.destroy();
-//
-//    }
+
+    }
     private LogInner buildMessage() {
         LogInner logInner=new LogInner();
         logInner.setAppName("test");

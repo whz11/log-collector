@@ -16,18 +16,14 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class MappedFileQueue {
 
     private static final int DELETE_FILES_BATCH_MAX = 10;
-
     //commitLog对应存储路径
     private final String storePath;
-
     //固定每个mappedFile的大小
     private final int mappedFileSize;
-
     //mappedFile文件集合
     private final CopyOnWriteArrayList<MappedFile> mappedFiles = new CopyOnWriteArrayList<MappedFile>();
-
     //创建mappedFile服务类
-    private final AllocateMappedFileService allocateMappedFileService;
+    private final MappedFileFactory mappedFileFactory;
     //当前刷盘指针，该指针前数据全部持久化到磁盘
     private long flushedWhere = 0;
     //当前数据提交指针
@@ -36,10 +32,10 @@ public class MappedFileQueue {
     private volatile long storeTimestamp = 0;
 
     public MappedFileQueue(final String storePath, int mappedFileSize,
-                           AllocateMappedFileService allocateMappedFileService) {
+                           MappedFileFactory mappedFileFactory) {
         this.storePath = storePath;
         this.mappedFileSize = mappedFileSize;
-        this.allocateMappedFileService = allocateMappedFileService;
+        this.mappedFileFactory = mappedFileFactory;
     }
 
 
@@ -128,15 +124,15 @@ public class MappedFileQueue {
                 if (file.length() != this.mappedFileSize) {
                     log.warn(file + "\t" + file.length()
                             + " length not matched message store config value, please check it manually");
-                    return false;
+                    continue;
                 }
-
                 try {
                     MappedFile mappedFile = new MappedFile(file.getPath(), mappedFileSize);
 
                     mappedFile.setWrotePosition(this.mappedFileSize);
                     mappedFile.setFlushedPosition(this.mappedFileSize);
                     mappedFile.setCommittedPosition(this.mappedFileSize);
+                    this.mappedFileFactory.setLatestOffset(mappedFile.getFileFromOffset());
                     this.mappedFiles.add(mappedFile);
                     log.info("load " + file.getPath() + " OK");
                 } catch (IOException e) {
@@ -144,55 +140,26 @@ public class MappedFileQueue {
                     return false;
                 }
             }
+
         }
+        this.mappedFileFactory.start();
 
         return true;
     }
 
-    public long howMuchFallBehind() {
-        if (this.mappedFiles.isEmpty()) {
-            return 0;
-        }
-
-        long committed = this.flushedWhere;
-        if (committed != 0) {
-            MappedFile mappedFile = this.getLastMappedFile(0, false);
-            if (mappedFile != null) {
-                return (mappedFile.getFileFromOffset() + mappedFile.getWrotePosition()) - committed;
-            }
-        }
-
-        return 0;
-    }
 
     //获取当前list最后一个mappedFile或创建有效的mappedFile
-    public MappedFile getLastMappedFile(final long startOffset, boolean needCreate) {
-        long createOffset = -1;
+    public MappedFile getLastMappedFile(boolean needCreate) {
         MappedFile mappedFileLast = getLastMappedFile();
 
-        if (mappedFileLast == null) {
-            createOffset = startOffset - (startOffset % this.mappedFileSize);
-        }
+        //校验是否需要创建
+        boolean check = mappedFileLast == null || mappedFileLast.isFull();
 
-        if (mappedFileLast != null && mappedFileLast.isFull()) {
-            createOffset = mappedFileLast.getFileFromOffset() + this.mappedFileSize;
-        }
-
-        if (createOffset != -1 && needCreate) {
-            String nextFilePath = this.storePath + File.separator + this.offset2FileName(createOffset);
-            String nextNextFilePath = this.storePath + File.separator
-                    + this.offset2FileName(createOffset + this.mappedFileSize);
+        if (check && needCreate) {
             MappedFile mappedFile = null;
 
-            if (this.allocateMappedFileService != null) {
-                mappedFile = this.allocateMappedFileService.putRequestAndReturnMappedFile(nextFilePath,
-                        nextNextFilePath, this.mappedFileSize);
-            } else {
-                try {
-                    mappedFile = new MappedFile(nextFilePath, this.mappedFileSize);
-                } catch (IOException e) {
-                    log.error("create mappedFile exception", e);
-                }
+            if (this.mappedFileFactory != null) {
+                mappedFile = this.mappedFileFactory.allocate();
             }
 
             if (mappedFile != null) {
@@ -208,17 +175,6 @@ public class MappedFileQueue {
         return mappedFileLast;
     }
 
-    public String offset2FileName(final long offset) {
-        final NumberFormat nf = NumberFormat.getInstance();
-        nf.setMinimumIntegerDigits(20);
-        nf.setMaximumFractionDigits(0);
-        nf.setGroupingUsed(false);
-        return nf.format(offset);
-    }
-
-    public MappedFile getLastMappedFile(final long startOffset) {
-        return getLastMappedFile(startOffset, true);
-    }
 
     public MappedFile getLastMappedFile() {
         MappedFile mappedFileLast = null;

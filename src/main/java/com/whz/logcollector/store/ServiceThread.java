@@ -11,8 +11,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @date 2022/1/18 21:08
  **/
 @Slf4j
-public abstract class ServiceThread implements  Runnable{
-    private static  final long JOIN_TIME=90*1000;
+public abstract class ServiceThread implements Runnable {
+    private static final long JOIN_TIME = 90 * 1000;
     private Thread thread;
     protected final CountDownLatch waitPoint = new CountDownLatch(1);
     protected volatile AtomicBoolean hasNotified = new AtomicBoolean(false);
@@ -26,7 +26,9 @@ public abstract class ServiceThread implements  Runnable{
 
     }
 
-    public abstract String getServiceName();
+    public String getServiceName() {
+        return this.getClass().getSimpleName();
+    }
 
     public void start() {
         log.info("Try to start service thread:{} started:{} lastThread:{}", getServiceName(), started.get(), thread);
