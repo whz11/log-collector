@@ -30,5 +30,6 @@ public interface LogStore {
      * Destroy this message store. Generally, all persistent files should be removed after invocation.
      */
     void destroy();
+    long flush();
     CompletableFuture<Boolean> asyncPut(LogInner logInner);
 }

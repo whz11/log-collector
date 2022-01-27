@@ -31,23 +31,33 @@ class DefaultLogStoreTest {
         assertTrue(load);
         logStore.start();
     }
+
     @Test
     void asyncPut() {
-        long t1=System.currentTimeMillis();
-        while (true) {
+        int count = 100;
+        while (count-- > 0) {
+            long t1 = System.currentTimeMillis();
             logStore.asyncPut(buildMessage());
+            System.out.println("cost:" + (System.currentTimeMillis() - t1));
+            try {
+//                Thread.sleep(200);
+            } catch (Exception e) {
+
+            }
         }
 //        System.out.println(System.currentTimeMillis()-t1);
 
     }
+
     @AfterEach
     public void destroy() {
-//        logStore.shutdown();
+        logStore.shutdown();
 //        logStore.destroy();
 
     }
+
     private LogInner buildMessage() {
-        LogInner logInner=new LogInner();
+        LogInner logInner = new LogInner();
         logInner.setAppName("test");
         logInner.setBody("大家好我是test".getBytes(StandardCharsets.UTF_8));
         return logInner;

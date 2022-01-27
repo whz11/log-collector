@@ -7,15 +7,20 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
 import sun.nio.ch.DirectBuffer;
+import sun.nio.ch.FileChannelImpl;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -28,7 +33,7 @@ import java.util.concurrent.atomic.AtomicLong;
 @Data
 public class MappedFile extends ReferenceResource {
     public static final int OS_PAGE_SIZE = 1024 * 4;
-    public static int maxMessageSize = 1024 * 1024 * 4;
+    public static int MAX_LOG_SIZE = 1024 * 1024 * 4;
 
     private static final AtomicLong TOTAL_MAPPED_VIRTUAL_MEMORY = new AtomicLong(0);
 
@@ -140,10 +145,10 @@ public class MappedFile extends ReferenceResource {
                 ;
 
         //log单条最大4m
-        if (logBlockLen > maxMessageSize) {
+        if (logBlockLen > MAX_LOG_SIZE) {
             log.warn("block size exceeded, block total size: " + logBlockLen + ", block body size: " + bodyLength
-                    + ", maxMessageSize: " + maxMessageSize);
-            return new AsyncLogResult(AsyncLogStatus.MESSAGE_SIZE_EXCEEDED);
+                    + ", MAX_LOG_SIZE: " + MAX_LOG_SIZE);
+            return new AsyncLogResult(AsyncLogStatus.LOG_SIZE_EXCEEDED);
         }
 
         // 没有充足空间
@@ -184,7 +189,11 @@ public class MappedFile extends ReferenceResource {
 
     /**
      * 将内存数据刷写到磁盘
-     * 在MappedFile设计中，只有提交到fileChannel或者MappedByteBuffer中的数据才是安全数据。
+     * 数据会在fileChannel或者MappedByteBuffer中。在MappedFile的设计中，只有提交了的数据，
+     * 写入到了MappedByteBuffer或者FileChannel中的数据认为是安全的数据
+     * 实际上只是将数据写入 PageCache，而操作系统会自动的将脏页刷盘，这层 PageCache 就是我们应用和物理存储之间的夹层，
+     * 当我们将数据写入 PageCache 后，即便我们的应用崩溃了，但是只要系统不崩溃，最终也会将数据刷入磁盘。
+     * 所以，以写入 PageCache 作为数据安全可读的判断标准。
      */
     public int flush(final int flushLeastPages) {
         if (this.isAbleToFlush(flushLeastPages)) {
@@ -344,6 +353,23 @@ public class MappedFile extends ReferenceResource {
 //        TOTAL_MAPPED_FILES.decrementAndGet();
 //        log.info("unmap file[REF:" + currentRef + "] " + this.fileName + " OK");
         return true;
+    }
+
+    /**
+     * MappedByteBuffer 的释放过程实际上有些诡异，Java 官方没有提供公共的方法来进行 MappedByteBuffer 的回收，
+     * 所以不得不通过反射来进行回收，这也是 MappedByteBuffer 比较坑的一点。
+     */
+    public static void clean(final MappedByteBuffer buffer) {
+        if (buffer == null || !buffer.isDirect() || buffer.capacity() == 0) {
+            return;
+        }
+        try {
+            Method m = FileChannelImpl.class.getDeclaredMethod("unmap", MappedByteBuffer.class);
+            m.setAccessible(true);
+            m.invoke(FileChannelImpl.class, buffer);
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            e.printStackTrace();
+        }
     }
 
     public boolean destroy(final long intervalForcibly) {

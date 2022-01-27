@@ -11,9 +11,18 @@ import java.io.File;
  **/
 @Data
 public class LogStoreConfig {
-    private int commitLogSize =  512;
+    private int commitLogSize = 1024*512;
     private String storePathRootDir = "store";
+    private String storePathCommitLog = "store" + File.separator + "commitlog";
+    private int commitIntervalCommitLog = 200;
+    private int commitCommitLogLeastPages = 4;
+    private int commitCommitLogThoroughInterval = 200;
 
-    private String storePathCommitLog = "store"
-            + File.separator + "commitlog";
+    //刷盘任务时间间隔，多久刷一次盘?ms
+    private int flushIntervalCommitLog = 500;
+    // 一次刷写任务至少包含页数，如果待刷写数据不足，小于该参数配置的值，将忽略本次刷写任务,默认4页
+    private int flushCommitLogLeastPages = 4;
+    // 两次真实刷写任务最大跨度，默认10s
+    private int flushCommitLogThoroughInterval = 1000 * 10;
+
 }

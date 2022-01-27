@@ -14,14 +14,17 @@ public class CommitLog {
     private ReentrantLock putMessageLock = new ReentrantLock();
     protected MappedFileQueue mappedFileQueue;
     private DefaultLogStore defaultLogStore;
-    private final FlushCommitLogService commitLogService;
+    private final FlushCommitLogService flushService;
+    private final CommitCommitLogService commitService;
 
     public CommitLog(final DefaultLogStore defaultLogStore) {
         this.mappedFileQueue = new MappedFileQueue(defaultLogStore.getLogStoreConfig().getStorePathCommitLog(),
                 defaultLogStore.getLogStoreConfig().getCommitLogSize(), defaultLogStore.getMappedFileFactory());
         this.defaultLogStore = defaultLogStore;
-        this.commitLogService=new FlushCommitLogService(defaultLogStore,mappedFileQueue);
-
+        //异步刷盘服务
+        this.flushService = new FlushCommitLogService(defaultLogStore, mappedFileQueue);
+        //定时提交服务
+        this.commitService = new CommitCommitLogService(defaultLogStore, mappedFileQueue);
     }
 
     public boolean load() {
@@ -31,11 +34,9 @@ public class CommitLog {
     }
 
     public void start() {
-//        this.flushCommitLogService.start();
-//
-//        if (defaultMessageStore.getMessageStoreConfig().isTransientStorePoolEnable()) {
-//            this.commitLogService.start();
-//        }
+        this.flushService.start();
+        this.commitService.start();
+
     }
 
     public void destroy() {
@@ -43,11 +44,14 @@ public class CommitLog {
     }
 
     public void shutdown() {
-//        if (defaultMessageStore.getMessageStoreConfig().isTransientStorePoolEnable()) {
-//            this.commitLogService.shutdown();
-//        }
-//
-//        this.flushCommitLogService.shutdown();
+        this.flushService.shutdown();
+        this.commitService.shutdown();
+    }
+
+    public long flush() {
+        this.mappedFileQueue.commit(0);
+        this.mappedFileQueue.flush(0);
+        return this.mappedFileQueue.getFlushedWhere();
     }
 
     public CompletableFuture<AsyncLogResult> putLog(final LogInner logInner) {
@@ -58,9 +62,7 @@ public class CommitLog {
         putMessageLock.lock();
         try {
             if (null == mappedFile || mappedFile.isFull()) {
-                long t1 = System.currentTimeMillis();
                 mappedFile = this.mappedFileQueue.getLastMappedFile(true);
-                log.info("time:{}ms", System.currentTimeMillis() - t1);
             }
             if (null == mappedFile) {
                 return CompletableFuture.completedFuture(new AsyncLogResult(AsyncLogStatus.UNKNOWN_ERROR));
@@ -78,7 +80,6 @@ public class CommitLog {
         } finally {
             putMessageLock.unlock();
         }
-        commitLogService.wakeup();
 
         return CompletableFuture.completedFuture(result);
     }

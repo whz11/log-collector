@@ -1,6 +1,7 @@
 package com.whz.logcollector.store;
 
 import com.whz.logcollector.store.config.LogStoreConfig;
+import com.whz.logcollector.store.config.StorePathConfigHelper;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
@@ -18,6 +19,7 @@ public class DefaultLogStore implements LogStore {
     private volatile boolean shutdown = true;
     private final LogStoreConfig logStoreConfig;
     private final MappedFileFactory mappedFileFactory;
+    private StoreCheckpoint storeCheckpoint;
 
     public DefaultLogStore() {
         this.logStoreConfig = new LogStoreConfig();
@@ -43,7 +45,7 @@ public class DefaultLogStore implements LogStore {
 
 
             if (result) {
-
+                this.storeCheckpoint = new StoreCheckpoint(StorePathConfigHelper.getStoreCheckpoint(this.getLogStoreConfig().getStorePathRootDir()));
             }
         } catch (Exception e) {
             log.error("load exception", e);
@@ -55,10 +57,9 @@ public class DefaultLogStore implements LogStore {
     }
 
     /**
-     * @throws Exception
      */
     @Override
-    public void start() throws Exception {
+    public void start() {
 
 
         this.commitLog.start();
@@ -71,9 +72,7 @@ public class DefaultLogStore implements LogStore {
         if (!this.shutdown) {
             this.shutdown = true;
 
-
             try {
-
                 Thread.sleep(1000);
             } catch (InterruptedException e) {
                 log.error("shutdown Exception, ", e);
@@ -81,11 +80,17 @@ public class DefaultLogStore implements LogStore {
 
             this.mappedFileFactory.shutdown();
             this.commitLog.shutdown();
+            this.storeCheckpoint.shutdown();
 
         }
 
         this.directByteBufferPool.destroy();
 
+    }
+
+    @Override
+    public long flush() {
+        return this.commitLog.flush();
     }
 
     @Override
