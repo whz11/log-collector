@@ -5,6 +5,7 @@ target/
 !**/src/test/**/target/
 .DS_Store
 /store
+/log
 ### STS ###
 .apt_generated
 .classpath

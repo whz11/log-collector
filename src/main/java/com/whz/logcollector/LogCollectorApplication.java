@@ -1,22 +1,33 @@
 package com.whz.logcollector;
 
+import com.whz.logcollector.store.DefaultLogStore;
+import com.whz.logcollector.store.LogInner;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.tomcat.util.buf.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.boot.web.servlet.support.SpringBootServletInitializer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.web.bind.annotation.*;
 
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import javax.servlet.http.HttpServletRequest;
 import java.io.*;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.atomic.LongAdder;
 
 import static com.whz.logcollector.FileManager.*;
 
@@ -24,42 +35,63 @@ import static com.whz.logcollector.FileManager.*;
 @RestController
 @Slf4j
 @EnableAsync
-public class LogCollectorApplication {
+public class LogCollectorApplication extends SpringBootServletInitializer {
+
 
     @Autowired
     private LogCollectorService logCollectorService;
     @Autowired
     private ThreadPoolTaskExecutor threadPoolTaskExecutor;
+    @Value("${logcollector.store.rootdir}")
+    private String rootDir;
 
-    public static void main(String[] args) throws FileNotFoundException {
+    private static DefaultLogStore logStore;
+
+    private static final LongAdder count = new LongAdder();
+
+    public static void main(String[] args) {
         SpringApplication.run(LogCollectorApplication.class, args);
-//        String filePath = PACKAGE + "/vis_log_collector-";
-//        BufferedReader reader = new BufferedReader(new FileReader(filePath ));
-//        BufferedReader reader1 = new BufferedReader(new FileReader(filePath +1));
-//        BufferedReader reader2= new BufferedReader(new FileReader(filePath +2));
-//        BufferedReader reader3= new BufferedReader(new FileReader(filePath +3));
-//        System.out.println(reader.lines().count());
-//        System.out.println(reader1.lines().count());
-//        System.out.println(reader2.lines().count());
-//        System.out.println(reader3.lines().count());
+
+
+        //统计qps
+//        Timer timer = new Timer();
+//        timer.schedule(new TimerTask() {
+//            @Override
+//            public void run() {
+//                log.info("qps:{}", count.longValue());
+//                count.reset();
+//            }
+//        }, 5000, 1000);
+    }
+
+    @Override
+    protected SpringApplicationBuilder configure(SpringApplicationBuilder builder) {
+        return builder.sources(LogCollectorApplication.class);
+    }
+
+    @PostConstruct
+    public void start() {
+        logStore = new DefaultLogStore(rootDir);
+        boolean load = logStore.load();
+        logStore.start();
+
+    }
+
+    @PreDestroy
+    public void destroy() {
+        logStore.shutdown();
     }
 
 
     @PostMapping("log/{app}")
     public void log(HttpServletRequest request, @PathVariable String app) throws IOException {
         BufferedReader bufferedReader = request.getReader();
-        String year = LocalDate.now().getYear() + "-";
-        String str;
-        StringBuilder buffer = new StringBuilder();
-        while ((str = bufferedReader.readLine()) != null) {
-            if (buffer.length() != 0 && str.startsWith(year)) {
-                logCollectorService.acceptAsync(app, buffer.toString());
-                buffer.setLength(0);
+        String line;
+        while ((line = bufferedReader.readLine()) != null ) {
+            if(line.isEmpty()){
+                continue;
             }
-            buffer.append(str).append("\n");
-        }
-        if (buffer.length() != 0) {
-            logCollectorService.acceptAsync(app, buffer.toString());
+            logStore.acceptAsync(new LogInner(app, line));
         }
     }
 

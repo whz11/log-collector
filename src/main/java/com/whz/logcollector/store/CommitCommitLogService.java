@@ -34,20 +34,13 @@ public class CommitCommitLogService extends ServiceThread {
                     defaultLogStore.getLogStoreConfig().getCommitCommitLogThoroughInterval();
             // 开始时间
             long begin = System.currentTimeMillis();
-            // 触发commit机制有两种方式：1.commit时间超过了两次commit时间间隔，然后只要有数据就进行提交 2.commit数据页数大于默认设置的4页
-            // 本次commit时间>上次commit时间+两次commit时间间隔，则进行commit，不用关心commit页数的大小，设置commitDataLeastPages=0
+
             if (begin >= (this.lastCommitTimestamp + commitDataThoroughInterval)) {
                 this.lastCommitTimestamp = begin;
                 commitDataLeastPages = 0;
             }
 
             try {
-                // result=false，表示提交了数据，多与上次提交的位置；表示此次有数据提交；result=true，表示没有新的数据被提交
-
-//                    MappedFile的刷盘方式有两种：
-//                    1. 写入内存字节缓冲区(writeBuffer) ----> 从内存字节缓冲区(write buffer)提交(commit)到文件通道(fileChannel) ----> 文件通道(fileChannel)flush到磁盘
-//                    2.写入映射文件字节缓冲区(mappedByteBuffer) ----> 映射文件字节缓冲区(mappedByteBuffer)flush
-                //执行提交的核心逻辑：将byteBuffer数据提交到FileChannel
                 boolean result = mappedFileQueue.commit(commitDataLeastPages);
                 long end = System.currentTimeMillis();
                 if (!result) {

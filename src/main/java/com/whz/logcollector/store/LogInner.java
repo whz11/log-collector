@@ -14,5 +14,9 @@ import lombok.NoArgsConstructor;
 public class LogInner {
     private String appName;
     private long commitLogOffset;
-    private byte[] body;
+    private String body;
+    public LogInner (String appName,String body){
+        this.appName=appName;
+        this.body=body;
+    }
 }

@@ -19,8 +19,6 @@ import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -136,8 +134,9 @@ public class MappedFile extends ReferenceResource {
         long wroteOffset = fileFromOffset + byteBuffer.position();
 
         byte[] appNameBytes = new byte[0];
+        byte[] bodyBytes = new byte[0];
 
-        final int bodyLength = logInner.getBody() == null ? 0 : logInner.getBody().length;
+        final int bodyLength = logInner.getBody() == null ? 0 : (bodyBytes = logInner.getBody().getBytes(StandardCharsets.UTF_8)).length;
         final int appNameLength = logInner.getAppName() == null ? 0 : (appNameBytes = logInner.getAppName().getBytes(StandardCharsets.UTF_8)).length;
         final int logBlockLen = 4 //log total size
                 + 4 + appNameLength //appNameLength and appName
@@ -173,7 +172,7 @@ public class MappedFile extends ReferenceResource {
 
         // 5 body
         if (bodyLength > 0) {
-            logBlock.put(logInner.getBody());
+            logBlock.put(bodyBytes);
         }
 
         byteBuffer.put(logBlock.array(), 0, logBlockLen);
@@ -196,6 +195,7 @@ public class MappedFile extends ReferenceResource {
      * 所以，以写入 PageCache 作为数据安全可读的判断标准。
      */
     public int flush(final int flushLeastPages) {
+        long start = System.currentTimeMillis();
         if (this.isAbleToFlush(flushLeastPages)) {
             if (this.hold()) {
                 int value = getReadPosition();
@@ -208,7 +208,10 @@ public class MappedFile extends ReferenceResource {
                 } catch (Throwable e) {
                     log.error("Error occurred when force data to disk.", e);
                 }
-
+                long gap = System.currentTimeMillis() - start;
+                if (gap > 500) {
+                    log.warn("mappedfile flush 耗时:{}ms,flushedDiff:{}B", gap, this.flushedPosition.get() - value);
+                }
                 this.flushedPosition.set(value);
                 this.release();
             } else {
@@ -221,10 +224,7 @@ public class MappedFile extends ReferenceResource {
 
     //将writeBuffer数据写入FileChannel
     public int commit(final int commitLeastPages) {
-        if (writeBuffer == null) {
-            //no need to commit data to file channel, so just regard wrotePosition as committedPosition.
-            return this.wrotePosition.get();
-        }
+
         if (this.isAbleToCommit(commitLeastPages)) {
             if (this.hold()) {
                 commit0();
@@ -297,7 +297,7 @@ public class MappedFile extends ReferenceResource {
         return this.fileSize == this.wrotePosition.get();
     }
 
-    public SelectMappedBufferResult selectMappedBuffer(int pos, int size) {
+    public MappedFileResult selectMappedBuffer(int pos, int size) {
         int readPosition = getReadPosition();
         if ((pos + size) <= readPosition) {
             if (this.hold()) {
@@ -305,7 +305,7 @@ public class MappedFile extends ReferenceResource {
                 byteBuffer.position(pos);
                 ByteBuffer byteBufferNew = byteBuffer.slice();
                 byteBufferNew.limit(size);
-                return new SelectMappedBufferResult(this.fileFromOffset + pos, byteBufferNew, size, this);
+                return new MappedFileResult(this.fileFromOffset + pos, byteBufferNew, size, this);
             } else {
                 log.warn("matched, but hold failed, request pos: " + pos + ", fileFromOffset: "
                         + this.fileFromOffset);
@@ -318,7 +318,7 @@ public class MappedFile extends ReferenceResource {
         return null;
     }
 
-    public SelectMappedBufferResult selectMappedBuffer(int pos) {
+    public MappedFileResult selectMappedBuffer(int pos) {
         int readPosition = getReadPosition();
         if (pos < readPosition && pos >= 0) {
             if (this.hold()) {
@@ -327,7 +327,7 @@ public class MappedFile extends ReferenceResource {
                 int size = readPosition - pos;
                 ByteBuffer byteBufferNew = byteBuffer.slice();
                 byteBufferNew.limit(size);
-                return new SelectMappedBufferResult(this.fileFromOffset + pos, byteBufferNew, size, this);
+                return new MappedFileResult(this.fileFromOffset + pos, byteBufferNew, size, this);
             }
         }
 

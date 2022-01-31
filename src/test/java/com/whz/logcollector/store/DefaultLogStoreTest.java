@@ -34,13 +34,14 @@ class DefaultLogStoreTest {
 
     @Test
     void asyncPut() {
+
         int count = 100;
         while (count-- > 0) {
             long t1 = System.currentTimeMillis();
-            logStore.asyncPut(buildMessage());
+            logStore.acceptAsync(buildMessage());
             System.out.println("cost:" + (System.currentTimeMillis() - t1));
             try {
-//                Thread.sleep(200);
+                Thread.sleep(200);
             } catch (Exception e) {
 
             }
@@ -59,7 +60,8 @@ class DefaultLogStoreTest {
     private LogInner buildMessage() {
         LogInner logInner = new LogInner();
         logInner.setAppName("test");
-        logInner.setBody("大家好我是test".getBytes(StandardCharsets.UTF_8));
+        String body="23:25:16.925 [main] INFO com.whz.logcollector.store.StoreCheckpoint - store checkpoint file indexMsgTimestamp 0锛屾病閿欐槸娴嬭瘯";
+        logInner.setBody(body);
         return logInner;
     }
 }

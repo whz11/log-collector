@@ -11,9 +11,8 @@ import java.io.File;
  **/
 @Data
 public class LogStoreConfig {
-    private int commitLogSize = 1024*512;
+    private int commitLogSize = 1024*1024*128;
     private String storePathRootDir = "store";
-    private String storePathCommitLog = "store" + File.separator + "commitlog";
     private int commitIntervalCommitLog = 200;
     private int commitCommitLogLeastPages = 4;
     private int commitCommitLogThoroughInterval = 200;

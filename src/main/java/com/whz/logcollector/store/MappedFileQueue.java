@@ -4,7 +4,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
 import java.io.IOException;
-import java.text.NumberFormat;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -330,7 +329,7 @@ public class MappedFileQueue {
             for (int i = 0; i < mfsLength; i++) {
                 boolean destroy;
                 MappedFile mappedFile = (MappedFile) mfs[i];
-                SelectMappedBufferResult result = mappedFile.selectMappedBuffer(this.mappedFileSize - unitSize);
+                MappedFileResult result = mappedFile.selectMappedBuffer(this.mappedFileSize - unitSize);
                 if (result != null) {
                     long maxOffsetInLogicQueue = result.getByteBuffer().getLong();
                     result.release();
@@ -404,12 +403,14 @@ public class MappedFileQueue {
             MappedFile lastMappedFile = this.getLastMappedFile();
             if (firstMappedFile != null && lastMappedFile != null) {
                 if (offset < firstMappedFile.getFileFromOffset() || offset >= lastMappedFile.getFileFromOffset() + this.mappedFileSize) {
-                    log.warn("Offset not matched. Request offset: {}, firstOffset: {}, lastOffset: {}, mappedFileSize: {}, mappedFiles count: {}",
-                            offset,
-                            firstMappedFile.getFileFromOffset(),
-                            lastMappedFile.getFileFromOffset() + this.mappedFileSize,
-                            this.mappedFileSize,
-                            this.mappedFiles.size());
+                    if(offset!=lastMappedFile.getFileFromOffset() + this.mappedFileSize) {
+                        log.warn("Offset not matched. Request offset: {}, firstOffset: {}, lastOffset: {}, mappedFileSize: {}, mappedFiles count: {}",
+                                offset,
+                                firstMappedFile.getFileFromOffset(),
+                                lastMappedFile.getFileFromOffset() + this.mappedFileSize,
+                                this.mappedFileSize,
+                                this.mappedFiles.size());
+                    }
                 } else {
                     int index = (int) ((offset / this.mappedFileSize) - (firstMappedFile.getFileFromOffset() / this.mappedFileSize));
                     MappedFile targetFile = null;

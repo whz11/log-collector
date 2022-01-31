@@ -1,12 +1,15 @@
 package com.whz.logcollector.store;
 
+import lombok.ToString;
+
 import java.nio.ByteBuffer;
 
 /**
  * @author whz
  * @date 2022/1/18 18:53
  **/
-public class SelectMappedBufferResult {
+@ToString
+public class MappedFileResult {
 
     private final long startOffset;
 
@@ -16,7 +19,7 @@ public class SelectMappedBufferResult {
 
     private MappedFile mappedFile;
 
-    public SelectMappedBufferResult(long startOffset, ByteBuffer byteBuffer, int size, MappedFile mappedFile) {
+    public MappedFileResult(long startOffset, ByteBuffer byteBuffer, int size, MappedFile mappedFile) {
         this.startOffset = startOffset;
         this.byteBuffer = byteBuffer;
         this.size = size;

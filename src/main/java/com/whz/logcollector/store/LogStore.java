@@ -31,5 +31,5 @@ public interface LogStore {
      */
     void destroy();
     long flush();
-    CompletableFuture<Boolean> asyncPut(LogInner logInner);
+    CompletableFuture<Boolean> acceptAsync(LogInner logInner);
 }

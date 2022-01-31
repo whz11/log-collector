@@ -5,7 +5,13 @@ import com.whz.logcollector.store.config.StorePathConfigHelper;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * @author whz
@@ -20,6 +26,17 @@ public class DefaultLogStore implements LogStore {
     private final LogStoreConfig logStoreConfig;
     private final MappedFileFactory mappedFileFactory;
     private StoreCheckpoint storeCheckpoint;
+    private final ConcurrentMap<String, AppLogFile> appLogFileTable;
+
+    public DefaultLogStore(String rootDir) {
+        this.logStoreConfig = new LogStoreConfig();
+        this.logStoreConfig.setStorePathRootDir(rootDir);
+        this.mappedFileFactory = new MappedFileFactory(this);
+        this.commitLog = new CommitLog(this);
+        this.directByteBufferPool = new DirectByteBufferPool(this.logStoreConfig);
+        this.directByteBufferPool.init();
+        this.appLogFileTable = new ConcurrentHashMap<>(32);
+    }
 
     public DefaultLogStore() {
         this.logStoreConfig = new LogStoreConfig();
@@ -27,23 +44,74 @@ public class DefaultLogStore implements LogStore {
         this.commitLog = new CommitLog(this);
         this.directByteBufferPool = new DirectByteBufferPool(this.logStoreConfig);
         this.directByteBufferPool.init();
+        this.appLogFileTable = new ConcurrentHashMap<>(32);
     }
 
     @Override
-    public CompletableFuture<Boolean> asyncPut(LogInner logInner) {
+    public CompletableFuture<Boolean> acceptAsync(LogInner logInner) {
         return this.commitLog.putLog(logInner).thenApply(result -> result.getStatus() == AsyncLogStatus.OK);
+    }
+
+    public void doDispatch(FetchLogResult fetchLogResult) {
+        AppLogFile appLogFile = findAppLogFile(fetchLogResult.getApp());
+        appLogFile.write(fetchLogResult.getBody(), fetchLogResult.getBodySize());
+    }
+
+    public AppLogFile findAppLogFile(String app) {
+        return appLogFileTable.compute(app, (k, v) -> {
+            try {
+                LocalDate now = LocalDate.now();
+                if (null == v || !v.getFileDate().isEqual(now)) {
+                    if (v != null) {
+                        v.shutdown();
+                    }
+                    v = new AppLogFile(this, now, app);
+                }
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
+            return v;
+        });
+
+
+    }
+
+    private boolean loadAppLogFiles() throws FileNotFoundException {
+//        File appLogRoot = new File(StorePathConfigHelper.getStorePathAppLog(this.logStoreConfig.getStorePathRootDir()));
+//        File[] appDirList = appLogRoot.listFiles();
+//        if (appDirList != null) {
+//
+//            for (File appDir : appDirList) {
+//                if (!appDir.isDirectory()) {
+//                    continue;
+//                }
+//                String app = appDir.getName();
+//                File[] logByDateList = appDir.listFiles();
+//                if (logByDateList != null) {
+//                    for (File logByDate : logByDateList) {
+//                        String curDate = LocalDate.now().toString();
+//                        if (curDate.equals(logByDate.getName())) {
+//                            log.info("load app:{},path:{}", app, logByDate.getPath());
+//                            AppLogFile curFile = new AppLogFile(this, app);
+//                            this.appLogFileTable.put(app, curFile);
+//                            break;
+//                        }
+//                    }
+//                }
+//            }
+//        }
+
+        log.info("load logics queue all over, OK");
+
+        return true;
     }
 
     @Override
     public boolean load() {
-        boolean result = true;
+        boolean result;
 
         try {
-
-            //加载mappedFile到mappedFileQueue
-            result = result && this.commitLog.load();
-
-
+            result = this.commitLog.load() && this.loadAppLogFiles();
             if (result) {
                 this.storeCheckpoint = new StoreCheckpoint(StorePathConfigHelper.getStoreCheckpoint(this.getLogStoreConfig().getStorePathRootDir()));
             }
@@ -57,6 +125,7 @@ public class DefaultLogStore implements LogStore {
     }
 
     /**
+     *
      */
     @Override
     public void start() {
@@ -81,6 +150,9 @@ public class DefaultLogStore implements LogStore {
             this.mappedFileFactory.shutdown();
             this.commitLog.shutdown();
             this.storeCheckpoint.shutdown();
+            for (AppLogFile appLogFile : appLogFileTable.values()) {
+                appLogFile.shutdown();
+            }
 
         }
 

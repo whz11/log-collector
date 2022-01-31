@@ -84,7 +84,7 @@ public class FlushCommitLogService extends ServiceThread {
                 }
                 long past = System.currentTimeMillis() - begin;
                 if (past > 500) {
-                    log.info("Flush data to disk costs {} ms", past);
+//                    log.info("Flush data to disk costs {} ms", past);
                 }
             } catch (Throwable e) {
                 log.warn(this.getServiceName() + " service has exception. ", e);

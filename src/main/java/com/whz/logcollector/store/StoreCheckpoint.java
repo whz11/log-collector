@@ -23,6 +23,7 @@ public class StoreCheckpoint {
     private volatile long physicMsgTimestamp = 0;
     private volatile long logicsMsgTimestamp = 0;
     private volatile long indexMsgTimestamp = 0;
+    private volatile long progressFromOffset = 0;
 
     public StoreCheckpoint(final String scpPath) throws IOException {
         File file = new File(scpPath);
@@ -38,10 +39,12 @@ public class StoreCheckpoint {
             this.physicMsgTimestamp = this.mappedByteBuffer.getLong(0);
             this.logicsMsgTimestamp = this.mappedByteBuffer.getLong(8);
             this.indexMsgTimestamp = this.mappedByteBuffer.getLong(16);
+            this.progressFromOffset = this.mappedByteBuffer.getLong(24);
 
             log.info("store checkpoint file physicMsgTimestamp " + this.physicMsgTimestamp );
             log.info("store checkpoint file logicsMsgTimestamp " + this.logicsMsgTimestamp );
             log.info("store checkpoint file indexMsgTimestamp " + this.indexMsgTimestamp );
+            log.info("store checkpoint file progressFromOffset " + this.progressFromOffset );
         } else {
             log.info("store checkpoint file not exists, " + scpPath);
         }
@@ -64,6 +67,7 @@ public class StoreCheckpoint {
         this.mappedByteBuffer.putLong(0, this.physicMsgTimestamp);
         this.mappedByteBuffer.putLong(8, this.logicsMsgTimestamp);
         this.mappedByteBuffer.putLong(16, this.indexMsgTimestamp);
+        this.mappedByteBuffer.putLong(24, this.progressFromOffset);
         this.mappedByteBuffer.force();
         log.info("store checkpoin is flushed");
 

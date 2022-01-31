@@ -1,5 +1,6 @@
 package com.whz.logcollector.store;
 
+import com.whz.logcollector.store.config.StorePathConfigHelper;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
@@ -72,7 +73,7 @@ public class MappedFileFactory extends ServiceThread {
                 //阻塞，等待通知唤醒，减少while死循环占用cpu
                 notifyQueue.take();
                 long createOffset = latestOffset == -1 ? 0 : latestOffset + fileSize;
-                String nextFilePath = logStore.getLogStoreConfig().getStorePathCommitLog() + File.separator + offset2FileName(createOffset);
+                String nextFilePath = StorePathConfigHelper.getStorePathCommitLog(logStore.getLogStoreConfig().getStorePathRootDir()) + File.separator + offset2FileName(createOffset);
                 MappedFile curMappedFile = create(nextFilePath, fileSize);
                 mappedFileWarehouse.offer(curMappedFile);
                 latestOffset = createOffset;
