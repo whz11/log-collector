@@ -96,13 +96,9 @@ public class MappedFileFactory extends ServiceThread {
     private MappedFile create(String fileName, int size) {
         MappedFile mappedFile = null;
         try {
-            try {
-                mappedFile = ServiceLoader.load(MappedFile.class).iterator().next();
-                mappedFile.init(fileName, size, logStore.getDirectByteBufferPool());
-            } catch (RuntimeException e) {
-                log.warn("Use default implementation.");
+
                 mappedFile = new MappedFile(fileName, logStore.getLogStoreConfig().getCommitLogSize(), logStore.getDirectByteBufferPool());
-            }
+
         } catch (IOException e) {
             e.printStackTrace();
         }

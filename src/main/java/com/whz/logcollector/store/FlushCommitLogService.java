@@ -52,22 +52,22 @@ public class FlushCommitLogService extends ServiceThread {
                 // 每间隔10次记录一次刷盘日志
                 printFlushProgress = (printTimes++ % 10) == 0;
             }
-            if (printFlushProgress) {
-                Supplier<Long> howMuchFallBehind = () -> {
-                    if (this.mappedFileQueue.getMappedFiles().isEmpty()) {
-                        return 0L;
-                    }
-                    long committed = this.mappedFileQueue.getFlushedWhere();
-                    if (committed != 0) {
-                        MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile();
-                        if (mappedFile != null) {
-                            return (mappedFile.getFileFromOffset() + mappedFile.getWrotePosition()) - committed;
-                        }
-                    }
-                    return 0L;
-                };
-                log.info("how much disk fall behind memory, {}", howMuchFallBehind.get());
-            }
+//            if (printFlushProgress) {
+//                Supplier<Long> howMuchFallBehind = () -> {
+//                    if (this.mappedFileQueue.getMappedFiles().isEmpty()) {
+//                        return 0L;
+//                    }
+//                    long committed = this.mappedFileQueue.getFlushedWhere();
+//                    if (committed != 0) {
+//                        MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile();
+//                        if (mappedFile != null) {
+//                            return (mappedFile.getFileFromOffset() + mappedFile.getWrotePosition()) - committed;
+//                        }
+//                    }
+//                    return 0L;
+//                };
+//                log.info("how much disk fall behind memory, {}", howMuchFallBehind.get());
+//            }
 
             try {
                 Thread.sleep(interval);

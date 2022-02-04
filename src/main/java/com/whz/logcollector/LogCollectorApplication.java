@@ -21,12 +21,8 @@ import javax.annotation.PreDestroy;
 import javax.servlet.http.HttpServletRequest;
 import java.io.*;
 import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ThreadPoolExecutor;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.LongAdder;
 
 import static com.whz.logcollector.FileManager.*;
@@ -49,19 +45,13 @@ public class LogCollectorApplication extends SpringBootServletInitializer {
 
     private static final LongAdder count = new LongAdder();
 
+    private static final ScheduledExecutorService SCHEDULE = Executors.newSingleThreadScheduledExecutor();
+    private static final List<Integer> OPS_LIST = new ArrayList<>();
+
     public static void main(String[] args) {
         SpringApplication.run(LogCollectorApplication.class, args);
 
 
-        //统计qps
-//        Timer timer = new Timer();
-//        timer.schedule(new TimerTask() {
-//            @Override
-//            public void run() {
-//                log.info("qps:{}", count.longValue());
-//                count.reset();
-//            }
-//        }, 5000, 1000);
     }
 
     @Override
@@ -74,12 +64,20 @@ public class LogCollectorApplication extends SpringBootServletInitializer {
         logStore = new DefaultLogStore(rootDir);
         boolean load = logStore.load();
         logStore.start();
-
+        SCHEDULE.scheduleAtFixedRate(() -> {
+            OPS_LIST.add(count.intValue());
+            count.reset();
+            if (OPS_LIST.size() >= 10) {
+                log.info(" 前10分钟，每分钟的平均日志吞吐量:{}", OPS_LIST);
+                OPS_LIST.clear();
+            }
+        }, 0, 1, TimeUnit.MINUTES);
     }
 
     @PreDestroy
     public void destroy() {
         logStore.shutdown();
+        SCHEDULE.shutdown();
     }
 
 
@@ -87,10 +85,11 @@ public class LogCollectorApplication extends SpringBootServletInitializer {
     public void log(HttpServletRequest request, @PathVariable String app) throws IOException {
         BufferedReader bufferedReader = request.getReader();
         String line;
-        while ((line = bufferedReader.readLine()) != null ) {
-            if(line.isEmpty()){
+        while ((line = bufferedReader.readLine()) != null) {
+            if (line.isEmpty()) {
                 continue;
             }
+            count.increment();
             logStore.acceptAsync(new LogInner(app, line));
         }
     }

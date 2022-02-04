@@ -10,7 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Data
 public class FetchLogService extends ServiceThread {
-    private volatile long progressFromOffset = 0;
+    public static volatile long progressFromOffset = 0;
     private final DefaultLogStore defaultLogStore;
     private final CommitLog commitLog;
 
@@ -21,17 +21,7 @@ public class FetchLogService extends ServiceThread {
 
     @Override
     public void shutdown() {
-        for (int i = 0; i < 50 && this.isCommitLogAvailable(); i++) {
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException ignored) {
-            }
-        }
-
-        if (this.isCommitLogAvailable()) {
-            log.warn("shutdown LogCollectService, but commitlog have not finish to be dispatched, commitOffset: {} progressFromOffset: {}",
-                    commitLog.getMaxOffset(), progressFromOffset);
-        }
+        defaultLogStore.getStoreCheckpoint().setProgressFromOffset(progressFromOffset);
 
         super.shutdown();
     }
@@ -41,7 +31,7 @@ public class FetchLogService extends ServiceThread {
     }
 
     private boolean isCommitLogAvailable() {
-        return this.progressFromOffset < commitLog.getMaxOffset();
+        return progressFromOffset < commitLog.getMaxOffset();
     }
 
     private void doFetch() {
@@ -52,14 +42,14 @@ public class FetchLogService extends ServiceThread {
         if (progressFromOffset > commitLog.getMaxOffset()) {
             progressFromOffset = commitLog.getMaxOffset();
         }
-        for (boolean doNext = true; this.isCommitLogAvailable() && doNext; ) {
+        for (boolean doNext = true; this.isCommitLogAvailable() && doNext&&!isStopped(); ) {
 
             MappedFileResult result = commitLog.getData(progressFromOffset);
             if (result != null) {
                 try {
                     progressFromOffset = result.getStartOffset();
 
-                    for (int readSize = 0; readSize < result.getSize() && doNext; ) {
+                    for (int readSize = 0; readSize < result.getSize() && doNext&&!isStopped(); ) {
                         FetchLogResult fetchLogResult = commitLog.fetchLog(result.getByteBuffer());
                         int size = fetchLogResult.getTotalSize();
 

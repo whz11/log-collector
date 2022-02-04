@@ -114,7 +114,7 @@ public class MappedFile extends ReferenceResource {
         int currentPos = this.wrotePosition.get();
 
         if (currentPos < this.fileSize) {
-            ByteBuffer byteBuffer = writeBuffer.slice();
+            ByteBuffer byteBuffer = writeBuffer != null ? writeBuffer.slice() : this.mappedByteBuffer.slice();
             byteBuffer.position(currentPos);
 
             AsyncLogResult result = this.doAppend(this.getFileFromOffset(), byteBuffer, this.fileSize - currentPos, logInner);
@@ -210,7 +210,7 @@ public class MappedFile extends ReferenceResource {
                 }
                 long gap = System.currentTimeMillis() - start;
                 if (gap > 500) {
-                    log.warn("mappedfile flush 耗时:{}ms,flushedDiff:{}B", gap, this.flushedPosition.get() - value);
+                    log.warn("mappedfile flush 耗时:{}ms,flushedDiff:{}B", gap, value - this.flushedPosition.get());
                 }
                 this.flushedPosition.set(value);
                 this.release();
@@ -224,7 +224,9 @@ public class MappedFile extends ReferenceResource {
 
     //将writeBuffer数据写入FileChannel
     public int commit(final int commitLeastPages) {
-
+        if (writeBuffer == null) {
+            return this.wrotePosition.get();
+        }
         if (this.isAbleToCommit(commitLeastPages)) {
             if (this.hold()) {
                 commit0();
