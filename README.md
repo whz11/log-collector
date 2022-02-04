@@ -46,7 +46,6 @@ logging.url=http://180.209.97.91:8080/logcollector/log/你的项目名称
 2.在项目代码文件夹下创建class复制以下代码
 
 ```java
-package com.qingyou.annualreport.util;
 
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.Layout;
@@ -247,8 +246,8 @@ public class LogCollectorAppender extends UnsynchronizedAppenderBase<ILoggingEve
 }
 ```
 
-3.在项目`logback-spring.xml`中添加刚刚的`appende`（`servers`，即服务端地址，也是我们第一步在配置文件中写的)（`flushPeriod`即发送日志的间隔时间s）(`pattern`是日志格式，此处默认是青柚日志格式)其他参数见上一步代码的字段，在xml中写成标签形式可覆盖。
-
+3.在项目`logback-spring.xml`中添加刚刚的`appender`（`servers`，即服务端地址，也是我们第一步在配置文件中写的)（`flushPeriod`即发送日志的间隔时间s）(`pattern`是日志格式，此处默认是青柚日志格式)其他参数见上一步代码的字段，在xml中写成标签形式可覆盖。
+(`appender的class`部分填写上一步添加的`appender`路径)
 ```xml
     <springProperty scope="context" name="HTTP_URL" source="logging.url" defaultValue="localhost"/>
  
