@@ -40,7 +40,7 @@
 1.在`application.properties`文件中添加
 
 ```properties
-logging.url=http://xx.xx.xx.xx:8080/logcollector/log/你的项目名称
+logging.url=http://180.209.97.91:8080/logcollector/log/你的项目名称
 ```
 
 2.在项目代码文件夹下创建class复制以下代码
