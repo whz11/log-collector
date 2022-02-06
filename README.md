@@ -40,7 +40,7 @@
 1.在`application.properties`文件中添加
 
 ```properties
-logging.url=http://180.209.97.91:8080/logcollector/log/你的项目名称
+logging.url=http://xx.xx.xx.xx:8080/logcollector/log/你的项目名称
 ```
 
 2.在项目代码文件夹下创建class复制以下代码
@@ -72,11 +72,12 @@ public class LogCollectorAppender extends UnsynchronizedAppenderBase<ILoggingEve
     private boolean enabled = true;
     private String servers;
     private long flushPeriod = 5;
-    private long threshold = 100;
+    private long threshold = 30;
     private long retry = 3;
+    private final int BLOCK_SIZE = 1024 * 8;
     private final AtomicLong committed = new AtomicLong();
-    private StringBuffer writeBuffer = new StringBuffer(1024 * 8);
-    private StringBuffer readBuffer = new StringBuffer(1024 * 8);
+    private StringBuffer writeBuffer = new StringBuffer(BLOCK_SIZE);
+    private StringBuffer readBuffer = new StringBuffer(BLOCK_SIZE);
     private String currentIp;
 
 
@@ -122,7 +123,7 @@ public class LogCollectorAppender extends UnsynchronizedAppenderBase<ILoggingEve
         }
         String log = "(" + currentIp + ")" + this.layout.doLayout(event) + "\n";
         writeBuffer.append(log);
-        if (committed.incrementAndGet() > threshold) {
+        if (committed.incrementAndGet() > threshold || writeBuffer.length() > BLOCK_SIZE * 0.8) {
             flush();
         }
     }
@@ -174,7 +175,8 @@ public class LogCollectorAppender extends UnsynchronizedAppenderBase<ILoggingEve
             out.write(logBytes);
             out.flush();
             out.close();
-            System.out.println("LogCollectorAppender conn code  :" + conn.getResponseCode()+",servers:"+servers+",bytes:"+logBytes.length);
+            System.out.println("LogCollectorAppender conn code  :" + conn.getResponseCode() + ",servers:" + servers + ",bytes:" + logBytes.length);
+
         } catch (Exception e) {
             this.addError(" client-side exception", e);
         } finally {

@@ -22,7 +22,6 @@ public class FetchLogService extends ServiceThread {
     @Override
     public void shutdown() {
         defaultLogStore.getStoreCheckpoint().setProgressFromOffset(progressFromOffset);
-
         super.shutdown();
     }
 
