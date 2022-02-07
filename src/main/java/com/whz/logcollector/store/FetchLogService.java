@@ -41,14 +41,14 @@ public class FetchLogService extends ServiceThread {
         if (progressFromOffset > commitLog.getMaxOffset()) {
             progressFromOffset = commitLog.getMaxOffset();
         }
-        for (boolean doNext = true; this.isCommitLogAvailable() && doNext&&!isStopped(); ) {
+        for (boolean doNext = true; this.isCommitLogAvailable() && doNext && !isStopped(); ) {
 
             MappedFileResult result = commitLog.getData(progressFromOffset);
             if (result != null) {
                 try {
                     progressFromOffset = result.getStartOffset();
 
-                    for (int readSize = 0; readSize < result.getSize() && doNext&&!isStopped(); ) {
+                    for (int readSize = 0; readSize < result.getSize() && doNext && !isStopped(); ) {
                         FetchLogResult fetchLogResult = commitLog.fetchLog(result.getByteBuffer());
                         int size = fetchLogResult.getTotalSize();
 
@@ -83,7 +83,7 @@ public class FetchLogService extends ServiceThread {
     @Override
     public void run() {
         log.info(this.getServiceName() + " service started");
-
+        int timeout = 10;
         while (!this.isStopped()) {
             try {
                 Thread.sleep(20);
@@ -91,6 +91,10 @@ public class FetchLogService extends ServiceThread {
                 defaultLogStore.getStoreCheckpoint().setProgressFromOffset(progressFromOffset);
             } catch (Exception e) {
                 log.warn(this.getServiceName() + " service has exception. ", e);
+                if (timeout-- < 0) {
+                    log.error(this.getServiceName() + " service has break by. ", e);
+                    break;
+                }
             }
         }
 

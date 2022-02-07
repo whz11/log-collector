@@ -90,9 +90,16 @@
         <appender-ref ref="ERROR"/>
     </appender>
 
-    <root level="INFO">
-        <appender-ref ref="ERROR"/>
-        <appender-ref ref="INFO"/>
-<!--        <appender-ref ref="STDOUT"/>-->
-    </root>
+    <springProfile name="dev">
+        <root level="DEBUG">
+            <appender-ref ref="STDOUT"/>
+        </root>
+    </springProfile>
+    <springProfile name="prod">
+        <root level="INFO">
+            <appender-ref ref="ERROR"/>
+            <appender-ref ref="INFO"/>
+        </root>
+    </springProfile>
+
 </configuration>
