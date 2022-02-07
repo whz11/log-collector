@@ -2,6 +2,7 @@ package com.whz.logcollector.store;
 
 import com.whz.logcollector.store.config.LogStoreConfig;
 import com.whz.logcollector.store.config.StorePathConfigHelper;
+import com.whz.logcollector.store.util.YamlUtil;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
@@ -28,9 +29,8 @@ public class DefaultLogStore implements LogStore {
     private StoreCheckpoint storeCheckpoint;
     private final ConcurrentMap<String, AppLogFile> appLogFileTable;
 
-    public DefaultLogStore(String rootDir) {
-        this.logStoreConfig = new LogStoreConfig();
-        this.logStoreConfig.setStorePathRootDir(rootDir);
+    public DefaultLogStore(String yamlName) {
+        this.logStoreConfig = YamlUtil.read(yamlName, LogStoreConfig.class);
         this.mappedFileFactory = new MappedFileFactory(this);
         this.commitLog = new CommitLog(this);
         this.directByteBufferPool = new DirectByteBufferPool(this.logStoreConfig);

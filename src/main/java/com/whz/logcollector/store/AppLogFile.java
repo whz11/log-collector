@@ -28,7 +28,7 @@ public class AppLogFile {
         this.defaultLogStore = defaultLogStore;
         this.fileDate = fileDate;
         this.app = app;
-        file = new File(StorePathConfigHelper.getAppLogFile(defaultLogStore.getLogStoreConfig().getStorePathRootDir(), app, fileDate));
+        file = new File(StorePathConfigHelper.getAppLogFile(defaultLogStore.getLogStoreConfig().getAppLogPathRootDir(), app, fileDate));
         MappedFile.ensureDirOK(file.getParent());
         this.fileChannel = new FileOutputStream(file, true).getChannel();
     }

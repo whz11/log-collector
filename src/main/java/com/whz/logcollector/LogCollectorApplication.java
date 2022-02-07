@@ -38,9 +38,9 @@ public class LogCollectorApplication extends SpringBootServletInitializer {
     private LogCollectorService logCollectorService;
     @Autowired
     private ThreadPoolTaskExecutor threadPoolTaskExecutor;
-    @Value("${logcollector.store.rootdir}")
-    private String rootDir;
 
+    @Value("${store.yaml}")
+    private String yamlName;
     private static DefaultLogStore logStore;
 
     private static final LongAdder count = new LongAdder();
@@ -61,7 +61,7 @@ public class LogCollectorApplication extends SpringBootServletInitializer {
 
     @PostConstruct
     public void start() {
-        logStore = new DefaultLogStore(rootDir);
+        logStore = new DefaultLogStore(yamlName);
         boolean load = logStore.load();
         logStore.start();
         SCHEDULE.scheduleAtFixedRate(() -> {
