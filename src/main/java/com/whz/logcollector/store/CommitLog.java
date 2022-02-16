@@ -99,6 +99,7 @@ public class CommitLog {
     }
 
     public FetchLogResult fetchLog(ByteBuffer logBlock) {
+        String appName=null;
         try {
 
             // 1 log total size
@@ -107,7 +108,6 @@ public class CommitLog {
             // 2 appNameLength
             int appNameLength = logBlock.getInt();
             // 3 appName
-            String appName = null;
             if (appNameLength > 0) {
                 logBlock.get(temp, 0, appNameLength);
                 appName = new String(temp, 0, appNameLength, StandardCharsets.UTF_8);
@@ -126,18 +126,17 @@ public class CommitLog {
                     + 4 + bodyLength //bodyLength and body
                     ;
             ;
-            if (totalSize != readLength && totalSize != 0) {
+            if (totalSize != readLength ) {
                 log.error(
-                        "[BUG]read total count not equals  total size. totalSize={}, readLength={}, bodyLength={}, appNameLength={}",
+                        "[BUG]read total count not equals total size. totalSize={}, readLength={}, bodyLength={}, appNameLength={}",
                         totalSize, readLength, bodyLength, appNameLength);
                 return new FetchLogResult(totalSize, false);
             }
-
             return new FetchLogResult(appName, logContent, bodyLength, totalSize, true);
         } catch (Exception e) {
+            log.error("[BUG]fetchLog error. appName={}",appName, e);
+            return new FetchLogResult(0, true);
         }
-
-        return new FetchLogResult(-1, false);
     }
 
     public CompletableFuture<AsyncLogResult> putLog(final LogInner logInner) {

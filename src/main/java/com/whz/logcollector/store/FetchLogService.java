@@ -59,6 +59,7 @@ public class FetchLogService extends ServiceThread {
                                 readSize += size;
                             } else if (size == 0) {
                                 progressFromOffset = commitLog.rollNextFile(progressFromOffset);
+                                log.warn("[BUG]read mappedFile end or error. progressFromOffset={},fetchResult={}", progressFromOffset,fetchLogResult);
                                 readSize = result.getSize();
                             }
                         } else {

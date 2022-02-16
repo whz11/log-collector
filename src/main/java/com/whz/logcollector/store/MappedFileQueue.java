@@ -41,7 +41,7 @@ public class MappedFileQueue {
         this.mappedFileSize = mappedFileSize;
         this.mappedFileFactory = mappedFileFactory;
         this.cleanUsedMappedFile = Executors.newSingleThreadScheduledExecutor();
-        this.cleanUsedMappedFile.scheduleAtFixedRate(this::deleteUnusedFile, 0, 1, TimeUnit.HOURS);
+        this.cleanUsedMappedFile.scheduleWithFixedDelay(this::deleteUnusedFile, 5, 60, TimeUnit.MINUTES);
     }
 
 

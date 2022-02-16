@@ -101,8 +101,6 @@ public class DefaultLogStore implements LogStore {
 //            }
 //        }
 
-        log.info("load logics queue all over, OK");
-
         return true;
     }
 
