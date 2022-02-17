@@ -16,7 +16,7 @@ import java.util.concurrent.*;
 @Slf4j
 public class MappedFileFactory extends ServiceThread {
 
-    private static final int WATERLINE = 2;
+    private static final int WATERLINE = 1;
     private final ConcurrentLinkedQueue<MappedFile> mappedFileWarehouse = new ConcurrentLinkedQueue<>();
     private final BlockingQueue<Boolean> notifyQueue = new ArrayBlockingQueue<>(WATERLINE);
     private final DefaultLogStore logStore;

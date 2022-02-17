@@ -111,6 +111,7 @@ public class DefaultLogStore implements LogStore {
         try {
             result = this.commitLog.load() && this.loadAppLogFiles();
             if (result) {
+                this.commitLog.recoverNormally();
                 this.storeCheckpoint = new StoreCheckpoint(StorePathConfigHelper.getStoreCheckpoint(this.getLogStoreConfig().getStorePathRootDir()));
             }
         } catch (Exception e) {

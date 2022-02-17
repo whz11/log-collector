@@ -227,7 +227,49 @@ public class MappedFileQueue {
 
         }
     }
+    public void truncateDirtyFiles(long offset) {
+        List<MappedFile> willRemoveFiles = new ArrayList<MappedFile>();
 
+        for (MappedFile file : this.mappedFiles) {
+            long fileTailOffset = file.getFileFromOffset() + this.mappedFileSize;
+            if (fileTailOffset > offset) {
+                if (offset >= file.getFileFromOffset()) {
+                    file.setWrotePosition((int) (offset % this.mappedFileSize));
+                    file.setCommittedPosition((int) (offset % this.mappedFileSize));
+                    file.setFlushedPosition((int) (offset % this.mappedFileSize));
+                } else {
+                    file.destroy(1000);
+                    willRemoveFiles.add(file);
+                }
+            }
+        }
+
+        this.deleteExpiredFile(willRemoveFiles);
+    }
+    //先移除mappedFiles列表中包含的数据，再移除
+    void deleteExpiredFile(List<MappedFile> files) {
+
+        if (!files.isEmpty()) {
+
+            Iterator<MappedFile> iterator = files.iterator();
+            while (iterator.hasNext()) {
+                MappedFile cur = iterator.next();
+
+                if (!this.mappedFiles.contains(cur)) {
+                    iterator.remove();
+                    log.info("This mappedFile {} is not contained by mappedFiles, so skip it.", cur.getFileName());
+                }
+            }
+
+            try {
+                if (!this.mappedFiles.removeAll(files)) {
+                    log.error("deleteExpiredFile remove failed.");
+                }
+            } catch (Exception e) {
+                log.error("deleteExpiredFile has exception.", e);
+            }
+        }
+    }
     public void deleteUnusedFile() {
 
         //已经处理的部分

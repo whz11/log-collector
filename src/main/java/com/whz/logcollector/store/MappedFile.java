@@ -32,6 +32,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class MappedFile extends ReferenceResource {
     public static final int OS_PAGE_SIZE = 1024 * 4;
     public static int MAX_LOG_SIZE = 1024 * 1024 * 4;
+    private static final int END_FILE_MIN_BLANK_LENGTH = 4 + 4;
 
     private static final AtomicLong TOTAL_MAPPED_VIRTUAL_MEMORY = new AtomicLong(0);
 
@@ -139,6 +140,7 @@ public class MappedFile extends ReferenceResource {
         final int bodyLength = logInner.getBody() == null ? 0 : (bodyBytes = logInner.getBody().getBytes(StandardCharsets.UTF_8)).length;
         final int appNameLength = logInner.getAppName() == null ? 0 : (appNameBytes = logInner.getAppName().getBytes(StandardCharsets.UTF_8)).length;
         final int logBlockLen = 4 //log total size
+                + 4//magic code
                 + 4 + appNameLength //appNameLength and appName
                 + 4 + bodyLength //bodyLength and body
                 ;
@@ -150,27 +152,32 @@ public class MappedFile extends ReferenceResource {
             return new AsyncLogResult(AsyncLogStatus.LOG_SIZE_EXCEEDED);
         }
 
-        // 没有充足空间
-        if (logBlockLen > maxBlank) {
+        // 没有充足空间(都要预留END_FILE_MIN_BLANK_LENGTH长度来填入魔数做文件结尾,之前没有判断文件结尾导致读取时候无法判断特殊情况)
+        if (logBlockLen + END_FILE_MIN_BLANK_LENGTH > maxBlank) {
+            ByteBuffer blankBlock = ByteBuffer.allocate(maxBlank);
+            blankBlock.putInt(maxBlank);
+            blankBlock.putInt(CommitLog.BLANK_MAGIC_CODE);
+            byteBuffer.put(blankBlock.array(), 0, maxBlank);
             return new AsyncLogResult(AsyncLogStatus.END_OF_FILE, wroteOffset, maxBlank);
         }
         ByteBuffer logBlock = ByteBuffer.allocate(logBlockLen);
 
         // 1 log total size
         logBlock.putInt(logBlockLen);
-
-        // 2 appNameLength
+        // 2 magic code
+        logBlock.putInt(CommitLog.MESSAGE_MAGIC_CODE);
+        // 3 appNameLength
         logBlock.putInt(appNameLength);
 
-        // 3 appName
+        // 4 appName
         if (appNameLength > 0) {
             logBlock.put(appNameBytes);
         }
 
-        // 4 bodyLength
+        // 5 bodyLength
         logBlock.putInt(bodyLength);
 
-        // 5 body
+        // 6 body
         if (bodyLength > 0) {
             logBlock.put(bodyBytes);
         }
